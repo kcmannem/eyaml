@@ -1,2 +1,1 @@
-# eyaml
-Inline secrets are OK
+# eYaml - an [ejson](https://github.com/shopify/ejson) copycat
