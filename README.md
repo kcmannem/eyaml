@@ -12,7 +12,7 @@ admin_password: hello
 ```
 Into this:
 ```yaml
-_public_key: sibgn2bskbu249
+_public_key: 2f2fa2be7c58672d551ef71151658229b9ae6d1369530ed983c49ba8cc937473
 admin_password: kekngniiqllr11rir994
 ```
 
@@ -20,7 +20,7 @@ Since eyaml encrypts every possible value it can in your file, you specify a whi
 
 
 ```yaml
-_public_key: sibgn2bskbu249
+_public_key: 2f2fa2be7c58672d551ef71151658229b9ae6d1369530ed983c49ba8cc937473
 _encrypt:
   - admin_password
   
