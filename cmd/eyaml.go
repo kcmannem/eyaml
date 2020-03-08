@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Shopify/ejson/crypto"
 	"github.com/fatih/color"
@@ -104,7 +106,7 @@ func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
 	case *ast.MappingNode:
 		for _, subnode := range nodeType.Values {
 			if isPublicKeyNode(subnode) {
-				metadata.PublicKey = subnode.String()
+				metadata.PublicKey = subnode.Value.String()
 			}
 			// if isEncryptKeyNode(subnode) {
 			// 	metadata.EncryptFields = subnode.Value
@@ -147,7 +149,11 @@ var encryptCmd = &cobra.Command{
 		}
 
 		for _, nodeTree := range astFile.Docs {
-			metadata, err := walkOnSurface(nodeTree)
+			metadata, err := walkOnSurface(nodeTree.Body)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
 			var kp crypto.Keypair
 			err = kp.Generate()
@@ -171,13 +177,89 @@ var encryptCmd = &cobra.Command{
 	},
 }
 
-// var decryptCmd = &cobra.Command{
-// 	Use:   "decrypt",
-// 	Short: "Decrypt an eYaml file",
-// 	Run: func(cmd *cobra.Command, args []string) {
+var decryptCmd = &cobra.Command{
+	Use:   "decrypt",
+	Short: "Decrypt an eYaml file",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if !fileExists(args[0]) {
+			fmt.Println("file doesn't exist")
+			return
+		}
 
-// 	},
-// }
+		data, err := ioutil.ReadFile(args[0])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		astFile, err := p.ParseBytes(data, 1)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		for _, nodeTree := range astFile.Docs {
+			metadata, err := walkOnSurface(nodeTree.Body)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			var rawPubKey [32]byte
+			copy(rawPubKey[:], metadata.PublicKey)
+
+			privateKey, err := fetchPrivateKey(metadata.PublicKey)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			var rawPrivKey [32]byte
+			copy(rawPrivKey[:], privateKey)
+
+			kp := crypto.Keypair{
+				Public:  rawPubKey,
+				Private: rawPrivKey,
+			}
+
+			decrypter := kp.Decrypter()
+			walk(nodeTree.Body, decrypter.Decrypt)
+
+		}
+
+		yamlPrinter := printer.Printer{}
+		for _, nodeTree := range astFile.Docs {
+			rawDecryptedData := yamlPrinter.PrintNode(nodeTree)
+			fmt.Print(string(rawDecryptedData))
+		}
+	},
+}
+
+func fetchPrivateKey(publicKey string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	privateKeyFile := filepath.Join(homeDir, keyStoreDir, publicKey)
+	privateKeyBytes, err := ioutil.ReadFile(privateKeyFile)
+	if err != nil {
+		return "", err
+	}
+
+	privateKeyBytes, err = hex.DecodeString(
+		strings.TrimSpace(string(privateKeyBytes)),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if len(privateKeyBytes) != 32 {
+		return "", fmt.Errorf("invalid private key, expected 32 bytes")
+	}
+
+	return string(privateKeyBytes), nil
+}
 
 var write bool
 var keygenCmd = &cobra.Command{
@@ -215,7 +297,6 @@ var keygenCmd = &cobra.Command{
 		fmt.Println(publicKey)
 		cyan.Println("Private Key:")
 		fmt.Println(privateKey)
-
 	},
 }
 
@@ -229,6 +310,7 @@ func init() {
 	)
 	rootCmd.AddCommand(keygenCmd)
 	rootCmd.AddCommand(encryptCmd)
+	rootCmd.AddCommand(decryptCmd)
 }
 
 func Execute() {
