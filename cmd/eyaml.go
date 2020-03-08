@@ -11,7 +11,7 @@ import (
 	"github.com/Shopify/ejson/crypto"
 	"github.com/fatih/color"
 	"github.com/goccy/go-yaml/ast"
-	p "github.com/goccy/go-yaml/parser"
+	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
 	"github.com/shopify/ejson"
 	"github.com/spf13/cobra"
@@ -58,43 +58,43 @@ func isEncryptKeyNode(node *ast.MappingValueNode) bool {
 	return false
 }
 
-func walk(node ast.Node, do actionFunc) {
+func walk(node ast.Node, modify actionFunc) {
 	switch nodeType := node.(type) {
 	case *ast.MappingNode:
 		for _, subnode := range nodeType.Values {
 			if !isMetadataNode(subnode) {
-				walk(subnode, do)
+				walk(subnode, modify)
 			}
 		}
 	case *ast.MappingValueNode:
 		if !isMetadataNode(nodeType) {
-			digValues(nodeType.Value, do)
+			digValues(nodeType.Value, modify)
 		}
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
-			digValues(subnode, do)
+			digValues(subnode, modify)
 		}
 	}
 	return
 }
 
-func digValues(node ast.Node, do actionFunc) {
+func digValues(node ast.Node, modify actionFunc) {
 	switch nodeType := node.(type) {
 	case *ast.MappingValueNode:
-		digValues(nodeType.Value, do)
+		digValues(nodeType.Value, modify)
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
-			digValues(subnode, do)
+			digValues(subnode, modify)
 		}
 	case *ast.LiteralNode:
 		// LiteralNode.Value points to a StringNode
-		digValues(nodeType.Value, do)
+		digValues(nodeType.Value, modify)
 	case *ast.StringNode:
-		encryptedBytes, err := do([]byte(nodeType.Value))
+		modifiedBytes, err := modify([]byte(nodeType.Value))
 		if err != nil {
 			fmt.Println(err)
 		}
-		nodeType.Value = string(encryptedBytes)
+		nodeType.Value = string(modifiedBytes)
 	}
 	return
 }
@@ -142,7 +142,7 @@ var encryptCmd = &cobra.Command{
 			return
 		}
 
-		astFile, err := p.ParseBytes(data, 1)
+		astFile, err := parser.ParseBytes(data, 1)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -193,7 +193,7 @@ var decryptCmd = &cobra.Command{
 			return
 		}
 
-		astFile, err := p.ParseBytes(data, 1)
+		astFile, err := parser.ParseBytes(data, 1)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -206,21 +206,34 @@ var decryptCmd = &cobra.Command{
 				return
 			}
 
-			var rawPubKey [32]byte
-			copy(rawPubKey[:], metadata.PublicKey)
+			rawPubKey, err := hex.DecodeString(metadata.PublicKey)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			var rawPubKey32 [32]byte
+			copy(rawPubKey32[:], rawPubKey)
 
 			privateKey, err := fetchPrivateKey(metadata.PublicKey)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			var rawPrivKey [32]byte
-			copy(rawPrivKey[:], privateKey)
+
+			var rawPrivKey32 [32]byte
+			rawPrivKey, err := hex.DecodeString(privateKey)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			copy(rawPrivKey32[:], rawPrivKey)
 
 			kp := crypto.Keypair{
-				Public:  rawPubKey,
-				Private: rawPrivKey,
+				Public:  rawPubKey32,
+				Private: rawPrivKey32,
 			}
+
+			// fmt.Println(hex.EncodeToString(rawPubKey32[:]), hex.EncodeToString(rawPrivKey32[:]))
 
 			decrypter := kp.Decrypter()
 			walk(nodeTree.Body, decrypter.Decrypt)
@@ -258,7 +271,7 @@ func fetchPrivateKey(publicKey string) (string, error) {
 		return "", fmt.Errorf("invalid private key, expected 32 bytes")
 	}
 
-	return string(privateKeyBytes), nil
+	return hex.EncodeToString(privateKeyBytes), nil
 }
 
 var write bool
