@@ -82,6 +82,10 @@ func digValues(node ast.Node, modify actionFunc) {
 	switch nodeType := node.(type) {
 	case *ast.MappingValueNode:
 		digValues(nodeType.Value, modify)
+	case *ast.MappingNode:
+		for _, subnode := range nodeType.Values {
+			digValues(subnode, modify)
+		}
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
 			digValues(subnode, modify)
@@ -94,7 +98,14 @@ func digValues(node ast.Node, modify actionFunc) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		nodeType.Value = string(modifiedBytes)
+		raw := string(modifiedBytes)
+		// Both the Node.Value and Token.Origin/Value store the same string
+		// value seperately. However, Token.Origin is used when node.String()
+		// is called; which will be done during printing the nodes back to the
+		// file after encryption
+		nodeType.Value = raw
+		nodeType.GetToken().Origin = raw
+		nodeType.GetToken().Value = raw
 	}
 	return
 }
@@ -109,7 +120,7 @@ func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
 				metadata.PublicKey = subnode.Value.String()
 			}
 			// if isEncryptKeyNode(subnode) {
-			// 	metadata.EncryptFields = subnode.Value
+			// 	metadata.EncryptFields = append(metadata.EncryptFields, subnode.Value.String())
 			// }
 		}
 	}
