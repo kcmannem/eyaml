@@ -8,6 +8,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/goccy/go-yaml v1.6.5
 	github.com/shopify/ejson v1.2.1
-	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/cobra v0.0.6
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 )

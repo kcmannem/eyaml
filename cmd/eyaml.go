@@ -13,6 +13,7 @@ import (
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
+	"github.com/kcmannem/eyaml/secretbox"
 	"github.com/shopify/ejson"
 	"github.com/spf13/cobra"
 )
@@ -166,7 +167,7 @@ var encryptCmd = &cobra.Command{
 				return
 			}
 
-			var kp crypto.Keypair
+			var kp secretbox.Keypair
 			err = kp.Generate()
 			if err != nil {
 				fmt.Println(err)
