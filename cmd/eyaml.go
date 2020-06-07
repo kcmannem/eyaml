@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Shopify/ejson/crypto"
 	"github.com/fatih/color"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
@@ -240,7 +239,7 @@ var decryptCmd = &cobra.Command{
 			}
 			copy(rawPrivKey32[:], rawPrivKey)
 
-			kp := crypto.Keypair{
+			kp := secretbox.Keypair{
 				Public:  rawPubKey32,
 				Private: rawPrivKey32,
 			}
