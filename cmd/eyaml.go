@@ -166,29 +166,13 @@ var encryptCmd = &cobra.Command{
 				return
 			}
 
-			privateKey, err := fetchPrivateKey(metadata.PublicKey)
+			kp, err := getKeypair(metadata.PublicKey)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			var rawPrivKey32 [32]byte
-			rawPrivKey, err := hex.DecodeString(privateKey)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			copy(rawPrivKey32[:], rawPrivKey)
-
-			var rawPubKey [32]byte
-			copy(rawPubKey[:], metadata.PublicKey)
-			kp := secretbox.Keypair {
-				Public: rawPubKey,
-				Private: rawPrivKey32,
-			}
-
-			encrypter := kp.Encrypter(rawPubKey)
+			encrypter := kp.Encrypter(kp.Public)
 
 			walk(nodeTree.Body, encrypter.Encrypt)
 		}
@@ -230,34 +214,11 @@ var decryptCmd = &cobra.Command{
 				return
 			}
 
-			rawPubKey, err := hex.DecodeString(metadata.PublicKey)
+			kp, err := getKeypair(metadata.PublicKey)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			var rawPubKey32 [32]byte
-			copy(rawPubKey32[:], rawPubKey)
-
-			privateKey, err := fetchPrivateKey(metadata.PublicKey)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			var rawPrivKey32 [32]byte
-			rawPrivKey, err := hex.DecodeString(privateKey)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			copy(rawPrivKey32[:], rawPrivKey)
-
-			kp := secretbox.Keypair{
-				Public:  rawPubKey32,
-				Private: rawPrivKey32,
-			}
-
-			// fmt.Println(hex.EncodeToString(rawPubKey32[:]), hex.EncodeToString(rawPrivKey32[:]))
 
 			decrypter := kp.Decrypter()
 			walk(nodeTree.Body, decrypter.Decrypt)
@@ -272,30 +233,51 @@ var decryptCmd = &cobra.Command{
 	},
 }
 
-func fetchPrivateKey(publicKey string) (string, error) {
+func getKeypair(publicKey string) (secretbox.Keypair, error) {
+	privateKeyBytes, err := fetchPrivateKey(publicKey)
+	if err != nil {
+		return secretbox.Keypair{}, err
+	}
+	var rawPrivateKey32 [32]byte
+	copy(rawPrivateKey32[:], privateKeyBytes)
+
+	rawPubKey, err := hex.DecodeString(publicKey)
+	if err != nil {
+		return secretbox.Keypair{}, err
+	}
+	var rawPublicKey32 [32]byte
+	copy(rawPublicKey32[:], rawPubKey)
+
+	return secretbox.Keypair{
+		Public:  rawPublicKey32,
+		Private: rawPrivateKey32,
+	}, nil
+}
+
+func fetchPrivateKey(publicKey string) ([]byte, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
 
 	privateKeyFile := filepath.Join(homeDir, keyStoreDir, publicKey)
 	privateKeyBytes, err := ioutil.ReadFile(privateKeyFile)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
 
 	privateKeyBytes, err = hex.DecodeString(
 		strings.TrimSpace(string(privateKeyBytes)),
 	)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
 
 	if len(privateKeyBytes) != 32 {
-		return "", fmt.Errorf("invalid private key, expected 32 bytes")
+		return []byte{}, fmt.Errorf("invalid private key, expected 32 bytes")
 	}
 
-	return hex.EncodeToString(privateKeyBytes), nil
+	return privateKeyBytes, nil
 }
 
 var write bool
