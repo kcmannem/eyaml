@@ -166,15 +166,28 @@ var encryptCmd = &cobra.Command{
 				return
 			}
 
-			var kp secretbox.Keypair
-			err = kp.Generate()
+			privateKey, err := fetchPrivateKey(metadata.PublicKey)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
+			var rawPrivKey32 [32]byte
+			rawPrivKey, err := hex.DecodeString(privateKey)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			copy(rawPrivKey32[:], rawPrivKey)
+
 			var rawPubKey [32]byte
 			copy(rawPubKey[:], metadata.PublicKey)
+			kp := secretbox.Keypair {
+				Public: rawPubKey,
+				Private: rawPrivKey32,
+			}
+
 			encrypter := kp.Encrypter(rawPubKey)
 
 			walk(nodeTree.Body, encrypter.Encrypt)
