@@ -30,9 +30,9 @@ admin_password: kekngniiqllr11rir994
 
 TODO:
 
-- [] make a build pipeline using github actions
-- [] notarize and publish build for brew
-- [] change schema to not be ejson
-- [] trimp white space for literal yaml values. it breaks for `key: |` and `key: -|`
-- [] add a rotate cmd
-- [] fix up readme
+- [ ] make a build pipeline using github actions
+- [ ] notarize and publish build for brew
+- [ ] change schema to not be ejson
+- [ ] trimp white space for literal yaml values. it breaks for `key: |` and `key: -|`
+- [ ] add a rotate cmd
+- [ ] fix up readme
