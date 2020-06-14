@@ -1,6 +1,6 @@
-# eYaml - an [ejson](https://github.com/shopify/ejson) copycat
+# eyaml - an [ejson](https://github.com/shopify/ejson) copycat
 
-Lets you encrypt inlined secrets and not worry about secret managers.
+*Lets you encrypt inlined secrets and not worry about secret managers.*
 
 ### How? [DRAFT]
 
