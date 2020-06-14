@@ -104,36 +104,39 @@ func digValues(node ast.Node, modify actionFunc) {
 		// is called; which will be done during printing the nodes back to the
 		// file after encryption
 
-		modifiedNodeValueBytes, err := modify(
-			[]byte(strings.TrimSpace(nodeType.Value)),
-		)
+		newNodeValue, err := modifyAndReapplyWhitespace(nodeType.Value, modify)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		modifiedOriginBytes, err := modify(
-			[]byte(strings.TrimSpace(nodeType.GetToken().Origin)),
-		)
+		newTokenOrigin, err := modifyAndReapplyWhitespace(nodeType.GetToken().Origin, modify)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		modifiedValueBytes, err := modify(
-			[]byte(strings.TrimSpace(nodeType.GetToken().Value)),
-		)
+		newTokenValue, err := modifyAndReapplyWhitespace(nodeType.GetToken().Value, modify)
 		if err != nil {
 			fmt.Println(err)
 		}
-
-		newNodeValue := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.Value), string(modifiedNodeValueBytes))
-		newOrigin := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.GetToken().Origin), string(modifiedOriginBytes))
-		newValue := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.GetToken().Origin), string(modifiedValueBytes))
 
 		nodeType.Value = newNodeValue
-		nodeType.GetToken().Origin = newOrigin
-		nodeType.GetToken().Value = newValue
+		nodeType.GetToken().Origin = newTokenOrigin
+		nodeType.GetToken().Value = newTokenValue
 	}
 	return
+}
+
+func modifyAndReapplyWhitespace(message string, modify actionFunc) (string, error) {
+	spaces := grabWhiteSpace(message)
+
+	modifiedBytes, err := modify(
+		[]byte(strings.TrimSpace(message)),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s%s", spaces, string(modifiedBytes)), nil
 }
 
 func grabWhiteSpace(origin string) string {
