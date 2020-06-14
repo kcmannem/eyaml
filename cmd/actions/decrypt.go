@@ -1,11 +1,12 @@
 package actions
 
 import (
+	"fmt"
+	"io/ioutil"
+
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"fmt"
 )
 
 func Decrypt(cmd *cobra.Command, args []string) {

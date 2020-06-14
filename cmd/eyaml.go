@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/kcmannem/eyaml/cmd/actions"
 	"os"
+
+	"github.com/kcmannem/eyaml/cmd/actions"
 	"github.com/spf13/cobra"
 )
 

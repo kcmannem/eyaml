@@ -3,13 +3,14 @@ package actions
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/goccy/go-yaml/ast"
-	"github.com/kcmannem/eyaml/secretbox"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/goccy/go-yaml/ast"
+	"github.com/kcmannem/eyaml/secretbox"
 )
 
 func fileExists(filename string) bool {
