@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/fatih/color"
 	"github.com/goccy/go-yaml/ast"
@@ -35,6 +36,10 @@ func fileExists(filename string) bool {
 }
 
 type actionFunc func([]byte) ([]byte, error)
+
+func stubbedAction(stub []byte) ([]byte, error) {
+	return stub, nil
+}
 
 func isMetadataNode(node *ast.MappingValueNode) bool {
 	return isPublicKeyNode(node) || isEncryptKeyNode(node)
@@ -94,20 +99,49 @@ func digValues(node ast.Node, modify actionFunc) {
 		// LiteralNode.Value points to a StringNode
 		digValues(nodeType.Value, modify)
 	case *ast.StringNode:
-		modifiedBytes, err := modify([]byte(nodeType.Value))
-		if err != nil {
-			fmt.Println(err)
-		}
-		raw := string(modifiedBytes)
 		// Both the Node.Value and Token.Origin/Value store the same string
 		// value seperately. However, Token.Origin is used when node.String()
 		// is called; which will be done during printing the nodes back to the
 		// file after encryption
-		nodeType.Value = raw
-		nodeType.GetToken().Origin = raw
-		nodeType.GetToken().Value = raw
+
+		modifiedNodeValueBytes, err := modify(
+			[]byte(strings.TrimSpace(nodeType.Value)),
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		modifiedOriginBytes, err := modify(
+			[]byte(strings.TrimSpace(nodeType.GetToken().Origin)),
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		modifiedValueBytes, err := modify(
+			[]byte(strings.TrimSpace(nodeType.GetToken().Value)),
+		)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		newNodeValue := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.Value), string(modifiedNodeValueBytes))
+		newOrigin := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.GetToken().Origin), string(modifiedOriginBytes))
+		newValue := fmt.Sprintf("%s%s", grabWhiteSpace(nodeType.GetToken().Origin), string(modifiedValueBytes))
+
+		nodeType.Value = newNodeValue
+		nodeType.GetToken().Origin = newOrigin
+		nodeType.GetToken().Value = newValue
 	}
 	return
+}
+
+func grabWhiteSpace(origin string) string {
+	nonWhitespaceSeeker := func(char rune) bool {
+		return !unicode.IsSpace(char)
+	}
+	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
+	return strings.Repeat(" ", i)
 }
 
 func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
@@ -119,9 +153,9 @@ func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
 			if isPublicKeyNode(subnode) {
 				metadata.PublicKey = subnode.Value.String()
 			}
-			// if isEncryptKeyNode(subnode) {
-			// 	metadata.EncryptFields = append(metadata.EncryptFields, subnode.Value.String())
-			// }
+			//if isEncryptKeyNode(subnode) {
+			//	metadata.EncryptFields = append(metadata.EncryptFields, subnode.Value.String())
+			//}
 		}
 	}
 
