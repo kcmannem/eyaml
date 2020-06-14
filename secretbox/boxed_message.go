@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-var messageParser = regexp.MustCompile("\\AEJ\\[(\\d):([A-Za-z0-9+=/]{44}):([A-Za-z0-9+=/]{32}):(.+)\\]\\z")
+var messageParser = regexp.MustCompile("\\Ahidden\\((\\d):([A-Za-z0-9+=/]{44}):([A-Za-z0-9+=/]{32}):(.+)\\)\\z")
 
 // boxedMessage dumps and loads the wire format for encrypted messages. The
 // schema is fairly simple:
@@ -42,7 +42,7 @@ func (b *boxedMessage) Dump() []byte {
 	nonce := base64.StdEncoding.EncodeToString(b.Nonce[:])
 	box := base64.StdEncoding.EncodeToString(b.Box)
 
-	str := fmt.Sprintf("EJ[%d:%s:%s:%s]",
+	str := fmt.Sprintf("hidden(%d:%s:%s:%s)",
 		b.SchemaVersion, pub, nonce, box)
 	return []byte(str)
 }
