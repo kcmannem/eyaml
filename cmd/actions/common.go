@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/kcmannem/eyaml/secretbox"
 )
@@ -49,69 +50,6 @@ func isEncryptKeyNode(node *ast.MappingValueNode) bool {
 	return false
 }
 
-func walk(node ast.Node, modify actionFunc) {
-	switch nodeType := node.(type) {
-	case *ast.MappingNode:
-		for _, subnode := range nodeType.Values {
-			if !isMetadataNode(subnode) {
-				walk(subnode, modify)
-			}
-		}
-	case *ast.MappingValueNode:
-		if !isMetadataNode(nodeType) {
-			digValues(nodeType.Value, modify)
-		}
-	case *ast.SequenceNode:
-		for _, subnode := range nodeType.Values {
-			digValues(subnode, modify)
-		}
-	}
-	return
-}
-
-func digValues(node ast.Node, modify actionFunc) {
-	switch nodeType := node.(type) {
-	case *ast.MappingValueNode:
-		digValues(nodeType.Value, modify)
-	case *ast.MappingNode:
-		for _, subnode := range nodeType.Values {
-			digValues(subnode, modify)
-		}
-	case *ast.SequenceNode:
-		for _, subnode := range nodeType.Values {
-			digValues(subnode, modify)
-		}
-	case *ast.LiteralNode:
-		// LiteralNode.Value points to a StringNode
-		digValues(nodeType.Value, modify)
-	case *ast.StringNode:
-		// Both the Node.Value and Token.Origin/Value store the same string
-		// value seperately. However, Token.Origin is used when node.String()
-		// is called; which will be done during printing the nodes back to the
-		// file after encryption
-
-		newNodeValue, err := modifyAndReapplyWhitespace(nodeType.Value, modify)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		newTokenOrigin, err := modifyAndReapplyWhitespace(nodeType.GetToken().Origin, modify)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		newTokenValue, err := modifyAndReapplyWhitespace(nodeType.GetToken().Value, modify)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		nodeType.Value = newNodeValue
-		nodeType.GetToken().Origin = newTokenOrigin
-		nodeType.GetToken().Value = newTokenValue
-	}
-	return
-}
-
 func modifyAndReapplyWhitespace(message string, modify actionFunc) (string, error) {
 	spaces := grabWhiteSpace(message)
 
@@ -132,6 +70,37 @@ func grabWhiteSpace(origin string) string {
 	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
 	return strings.Repeat(" ", i)
 }
+
+func modify(node *ast.StringNode, modifier actionFunc) {
+	if secretbox.IsBoxedMessage([]byte(node.Value)) {
+		return
+	}
+
+	// Both the Node.Value and Token.Origin/Value store the same string
+	// value seperately. However, Token.Origin is used when node.String()
+	// is called; which will be done during printing the nodes back to the
+	// file after encryption
+
+	newNodeValue, err := modifyAndReapplyWhitespace(node.Value, modifier)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	newTokenOrigin, err := modifyAndReapplyWhitespace(node.GetToken().Origin, modifier)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	newTokenValue, err := modifyAndReapplyWhitespace(node.GetToken().Value, modifier)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	node.Value = newNodeValue
+	node.GetToken().Origin = newTokenOrigin
+	node.GetToken().Value = newTokenValue
+}
+
 
 func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
 	metadata := eyamlMetadata{}
@@ -155,9 +124,23 @@ func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
 	return metadata, nil
 }
 
+func ParseEyamlMetadata(doc *ast.DocumentNode) (eyamlMetadata, error) {
+	var metadata eyamlMetadata
+	if strings.Contains(doc.Body.GetComment().String(), "meta") {
+		rawDocBytes, err := doc.Body.MarshalYAML()
+		if err != nil {
+			return metadata, err
+		}
+		yaml.Unmarshal(rawDocBytes, &metadata)
+	} else {
+		return metadata, fmt.Errorf("not a metadata document")
+	}
+	return metadata, nil
+}
+
 type eyamlMetadata struct {
-	PublicKey     string   `yaml:"public_key,omitempty"`
-	EncryptFields []string `yaml:"_encrypt,omitempty"`
+	PublicKey     string   `yaml:"public_key, omitempty"`
+	EncryptFields []string `yaml:"encrypt, omitempty"`
 }
 
 

@@ -2,11 +2,10 @@ package actions
 
 import (
 	"fmt"
-	"io/ioutil"
-
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 )
 
 func Decrypt(cmd *cobra.Command, args []string) {
@@ -27,22 +26,26 @@ func Decrypt(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	var metadata eyamlMetadata
+	metadata, err = ParseEyamlMetadata(astFile.Docs[0])
+	if err != nil {
+		fmt.Println("file is missing eyaml metadata")
+		return
+	}
+
+	kp, err := getKeypair(metadata.PublicKey)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	decrypter := kp.Decrypter()
+
 	for _, nodeTree := range astFile.Docs {
-		metadata, err := walkOnSurface(nodeTree.Body)
-		if err != nil {
-			fmt.Println(err)
-			return
+		literals := YamlLiteralsFor(nodeTree.Body)
+		for _, literalNode := range literals.List() {
+			modify(literalNode, decrypter.Decrypt)
 		}
-
-		kp, err := getKeypair(metadata.PublicKey)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		decrypter := kp.Decrypter()
-		walk(nodeTree.Body, decrypter.Decrypt)
-
 	}
 
 	yamlPrinter := printer.Printer{}

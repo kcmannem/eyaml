@@ -33,6 +33,13 @@ var decryptCmd = &cobra.Command{
 	Run:  actions.Decrypt,
 }
 
+var revealKeyCmd= &cobra.Command{
+	Use:   "reveal-key",
+	Short: "reveal hidden value for a specific key",
+	Args:  cobra.MinimumNArgs(1),
+	Run:  actions.RevealKey,
+}
+
 func init() {
 	keygenCmd.Flags().BoolVarP(
 		&actions.Write,
@@ -44,6 +51,7 @@ func init() {
 	rootCmd.AddCommand(keygenCmd)
 	rootCmd.AddCommand(encryptCmd)
 	rootCmd.AddCommand(decryptCmd)
+	rootCmd.AddCommand(revealKeyCmd)
 }
 
 func Execute() {

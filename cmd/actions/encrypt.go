@@ -28,22 +28,26 @@ func Encrypt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	for _, nodeTree := range astFile.Docs {
-		metadata, err := walkOnSurface(nodeTree.Body)
-		if err != nil {
-			fmt.Println(err)
-			return
+	var metadata eyamlMetadata
+	metadata, err = ParseEyamlMetadata(astFile.Docs[0])
+	if err != nil {
+		fmt.Println("file is missing eyaml metadata")
+		return
+	}
+
+	kp, err := getKeypair(metadata.PublicKey)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	encrypter := kp.Encrypter(kp.Public)
+
+	for _, nodeTree := range astFile.Docs[1:] {
+		literals := YamlLiteralsFor(nodeTree.Body)
+		for _, literalNode := range literals.List() {
+			modify(literalNode,  encrypter.Encrypt)
 		}
-
-		kp, err := getKeypair(metadata.PublicKey)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		encrypter := kp.Encrypter(kp.Public)
-
-		walk(nodeTree.Body, encrypter.Encrypt)
 	}
 
 	yamlPrinter := printer.Printer{}
