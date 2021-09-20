@@ -41,10 +41,10 @@ func Decrypt(cmd *cobra.Command, args []string) {
 
 	decrypter := kp.Decrypter()
 
-	for _, nodeTree := range astFile.Docs {
+	for _, nodeTree := range astFile.Docs[1:] {
 		literals := YamlLiteralsFor(nodeTree.Body)
-		for _, literalNode := range literals.List() {
-			modify(literalNode, decrypter.Decrypt)
+		for _, literal:= range literals.List() {
+			modify(literal.node, decrypter.Decrypt)
 		}
 	}
 

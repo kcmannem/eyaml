@@ -45,8 +45,8 @@ func Encrypt(cmd *cobra.Command, args []string) {
 
 	for _, nodeTree := range astFile.Docs[1:] {
 		literals := YamlLiteralsFor(nodeTree.Body)
-		for _, literalNode := range literals.List() {
-			modify(literalNode,  encrypter.Encrypt)
+		for _, literal:= range literals.List() {
+			modify(literal.node,  encrypter.Encrypt)
 		}
 	}
 

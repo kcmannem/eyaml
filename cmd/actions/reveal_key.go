@@ -27,35 +27,35 @@ func RevealKey(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	for _, nodeTree := range astFile.Docs {
-		metadata, err := walkOnSurface(nodeTree.Body)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		kp, err := getKeypair(metadata.PublicKey)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		decrypter := kp.Decrypter()
-		literals := YamlLiteralsFor(nodeTree.Body)
-		for _, literalNode := range literals.List() {
-			// TODO: compare path
-			//if literalNode.GetPath() ==
-			rawDecryptedData, err := decrypter.Decrypt([]byte(strings.TrimSpace(literalNode.Value)))
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(string(rawDecryptedData))
-		}
+	var metadata eyamlMetadata
+	metadata, err = ParseEyamlMetadata(astFile.Docs[0])
+	if err != nil {
+		fmt.Println("file is missing eyaml metadata")
+		return
 	}
 
-	//yamlPrinter := printer.Printer{}
-	//for _, nodeTree := range astFile.Docs {
-	//	rawDecryptedData := yamlPrinter.PrintNode(nodeTree)
-	//	fmt.Print(string(rawDecryptedData))
-	//}
+	kp, err := getKeypair(metadata.PublicKey)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	decrypter := kp.Decrypter()
+
+	for _, nodeTree := range astFile.Docs[1:] {
+		literals := YamlLiteralsFor(nodeTree.Body)
+
+		for _, literal := range literals.List() {
+			if strings.Contains(literal.path, args[1]) {
+				rawDecryptedData, err := decrypter.Decrypt([]byte(strings.TrimSpace(literal.node.Value)))
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				fmt.Println(string(rawDecryptedData))
+				return
+			}
+		}
+	}
+	fmt.Println("could not find specified key")
 }

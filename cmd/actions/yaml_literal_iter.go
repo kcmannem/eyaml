@@ -4,19 +4,24 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
+type addressedLiteral struct{
+	path string
+	node *ast.StringNode
+}
+
 type YamlLiterals struct {
-	listByDFS []*ast.StringNode
+	listByDFS []addressedLiteral
 }
 
 func YamlLiteralsFor(root ast.Node) *YamlLiterals {
 	nodes := &YamlLiterals {
-		listByDFS: make([]*ast.StringNode, 0),
+		listByDFS: make([]addressedLiteral, 0),
 	}
 	nodes.flatten(root)
 	return nodes
 }
 
-func (i *YamlLiterals) List() []*ast.StringNode {
+func (i *YamlLiterals) List() []addressedLiteral {
 	return i.listByDFS
 }
 
@@ -56,7 +61,10 @@ func (i *YamlLiterals) flattenFurther(node ast.Node) {
 		// LiteralNode.Value points to a StringNode
 		i.flattenFurther(nodeType.Value)
 	case *ast.StringNode:
-		i.listByDFS = append(i.listByDFS, nodeType)
+		i.listByDFS = append(i.listByDFS, addressedLiteral{
+			path: nodeType.GetPath(),
+			node: nodeType,
+		})
 	}
 	return
 }
