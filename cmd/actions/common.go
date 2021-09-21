@@ -1,15 +1,12 @@
 package actions
 
 import (
-	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"github.com/goccy/go-yaml/token"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 
-	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/kcmannem/eyaml/secretbox"
 )
@@ -24,30 +21,16 @@ func fileExists(filename string) bool {
 
 type actionFunc func([]byte) ([]byte, error)
 
-func stubbedAction(stub []byte) ([]byte, error) {
-	return stub, nil
+type YamlNodeModifier interface {
+	modify([]byte) ([]byte, error)
 }
 
-func isMetadataNode(node *ast.MappingValueNode) bool {
-	return isPublicKeyNode(node) || isEncryptKeyNode(node)
-}
-
-const (
-	publicKeyIndicator = "public_key"
-	encryptIndicator   = "encrypt"
-)
-
-func isPublicKeyNode(node *ast.MappingValueNode) bool {
-	if node.Key.String() == publicKeyIndicator {
-		return true
+func grabWhiteSpace(origin string) string {
+	nonWhitespaceSeeker := func(char rune) bool {
+		return !unicode.IsSpace(char)
 	}
-	return false
-}
-func isEncryptKeyNode(node *ast.MappingValueNode) bool {
-	if node.Key.String() == encryptIndicator {
-		return true
-	}
-	return false
+	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
+	return strings.Repeat(" ", i)
 }
 
 func modifyAndReapplyWhitespace(message string, modify actionFunc) (string, error) {
@@ -63,17 +46,32 @@ func modifyAndReapplyWhitespace(message string, modify actionFunc) (string, erro
 	return fmt.Sprintf("%s%s", spaces, string(modifiedBytes)), nil
 }
 
-func grabWhiteSpace(origin string) string {
-	nonWhitespaceSeeker := func(char rune) bool {
-		return !unicode.IsSpace(char)
+func modifyAndReapplyWhitespaceForSequenceEntry(message string, modify actionFunc) (string, error) {
+	splitLines := strings.Split(message, "\n")
+	// drop an empty string that gets left behind no the split
+	splitLines = splitLines[:len(splitLines)-1]
+
+	for i, line := range splitLines {
+		splitLines[i] = strings.TrimSpace(line)
 	}
-	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
-	return strings.Repeat(" ", i)
+	scrubedMessage := strings.Join(splitLines, "\n")
+
+	modifiedBytes, err := modify(
+		[]byte(scrubedMessage),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return string(modifiedBytes), nil
 }
 
-func modify(node *ast.StringNode, modifier actionFunc) {
-	if secretbox.IsBoxedMessage([]byte(node.Value)) {
-		return
+func modify(node ast.Node, modifier actionFunc) {
+	switch stringyNode := node.(type) {
+	case *ast.LiteralNode:
+		modifyLiteral(stringyNode, modifier)
+	case *ast.StringNode:
+		modifyString(stringyNode, modifier)
 	}
 
 	// Both the Node.Value and Token.Origin/Value store the same string
@@ -81,112 +79,67 @@ func modify(node *ast.StringNode, modifier actionFunc) {
 	// is called; which will be done during printing the nodes back to the
 	// file after encryption
 
+}
+
+func modifyLiteral(node *ast.LiteralNode, modifier actionFunc) {
+	stringNode := node.Value
+
+	if secretbox.IsBoxedMessage([]byte(stringNode.Value)) {
+		return
+	}
+
+	newNodeValue, err := modifyAndReapplyWhitespace(stringNode.Value, modifier)
+	if err != nil {
+		fmt.Println("Unable to modify node value: ", err)
+		return
+	}
+
+	var newTokenOrigin string
+	if node.GetToken().Prev.Type == token.SequenceEntryType {
+		newTokenOrigin, err = modifyAndReapplyWhitespaceForSequenceEntry(stringNode.GetToken().Origin, modifier)
+	} else {
+		newTokenOrigin, err = modifyAndReapplyWhitespace(stringNode.GetToken().Origin, modifier)
+	}
+	if err != nil {
+		fmt.Println("Unable to modify token origin: ", err)
+		return
+	}
+
+	newTokenValue, err := modifyAndReapplyWhitespace(stringNode.GetToken().Value, modifier)
+	if err != nil {
+		fmt.Println("Unable to modify token value: ", err)
+		return
+	}
+
+	stringNode.Value = newNodeValue
+	stringNode.GetToken().Origin = newTokenOrigin
+	stringNode.GetToken().Value = newTokenValue
+}
+
+func modifyString(node *ast.StringNode, modifier actionFunc) {
+	if secretbox.IsBoxedMessage([]byte(node.Value)) {
+		return
+	}
+
 	newNodeValue, err := modifyAndReapplyWhitespace(node.Value, modifier)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Unable to modify node value: ", err)
+		return
 	}
 
 	newTokenOrigin, err := modifyAndReapplyWhitespace(node.GetToken().Origin, modifier)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Unable to modify token origin: ", err)
+		return
 	}
 
 	newTokenValue, err := modifyAndReapplyWhitespace(node.GetToken().Value, modifier)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Unable to modify token value: ", err)
+		return
 	}
 
 	node.Value = newNodeValue
 	node.GetToken().Origin = newTokenOrigin
 	node.GetToken().Value = newTokenValue
-}
-
-
-func walkOnSurface(node ast.Node) (eyamlMetadata, error) {
-	metadata := eyamlMetadata{}
-
-	switch nodeType := node.(type) {
-	case *ast.MappingNode:
-		for _, subnode := range nodeType.Values {
-			if isPublicKeyNode(subnode) {
-				metadata.PublicKey = subnode.Value.String()
-			}
-			//if isEncryptKeyNode(subnode) {
-			//	metadata.EncryptFields = append(metadata.EncryptFields, subnode.Value.String())
-			//}
-		}
-	}
-
-	if metadata.PublicKey == "" {
-		return metadata, fmt.Errorf("Could not find public key")
-	}
-
-	return metadata, nil
-}
-
-func ParseEyamlMetadata(doc *ast.DocumentNode) (eyamlMetadata, error) {
-	var metadata eyamlMetadata
-	if strings.Contains(doc.Body.GetComment().String(), "meta") {
-		rawDocBytes, err := doc.Body.MarshalYAML()
-		if err != nil {
-			return metadata, err
-		}
-		yaml.Unmarshal(rawDocBytes, &metadata)
-	} else {
-		return metadata, fmt.Errorf("not a metadata document")
-	}
-	return metadata, nil
-}
-
-type eyamlMetadata struct {
-	PublicKey     string   `yaml:"public_key, omitempty"`
-	EncryptFields []string `yaml:"encrypt, omitempty"`
-}
-
-
-func getKeypair(publicKey string) (secretbox.Keypair, error) {
-	privateKeyBytes, err := fetchPrivateKey(publicKey)
-	if err != nil {
-		return secretbox.Keypair{}, err
-	}
-	var rawPrivateKey32 [32]byte
-	copy(rawPrivateKey32[:], privateKeyBytes)
-
-	rawPubKey, err := hex.DecodeString(publicKey)
-	if err != nil {
-		return secretbox.Keypair{}, err
-	}
-	var rawPublicKey32 [32]byte
-	copy(rawPublicKey32[:], rawPubKey)
-
-	return secretbox.Keypair{
-		Public:  rawPublicKey32,
-		Private: rawPrivateKey32,
-	}, nil
-}
-
-func fetchPrivateKey(publicKey string) ([]byte, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	privateKeyFile := filepath.Join(homeDir, keyStoreDir, publicKey)
-	privateKeyBytes, err := ioutil.ReadFile(privateKeyFile)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	privateKeyBytes, err = hex.DecodeString(
-		strings.TrimSpace(string(privateKeyBytes)),
-	)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	if len(privateKeyBytes) != 32 {
-		return []byte{}, fmt.Errorf("invalid private key, expected 32 bytes")
-	}
-
-	return privateKeyBytes, nil
 }

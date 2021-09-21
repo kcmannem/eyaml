@@ -6,7 +6,7 @@ import (
 
 type addressedLiteral struct{
 	path string
-	node *ast.StringNode
+	node ast.Node
 }
 
 type YamlLiterals struct {
@@ -29,14 +29,10 @@ func (i *YamlLiterals) flatten(node ast.Node) {
 	switch nodeType := node.(type) {
 	case *ast.MappingNode:
 		for _, subnode := range nodeType.Values {
-			if !isMetadataNode(subnode) {
-				i.flatten(subnode)
-			}
+			i.flatten(subnode)
 		}
 	case *ast.MappingValueNode:
-		if !isMetadataNode(nodeType) {
-			i.flattenFurther(nodeType.Value)
-		}
+		i.flattenFurther(nodeType.Value)
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
 			i.flattenFurther(subnode)
@@ -59,7 +55,10 @@ func (i *YamlLiterals) flattenFurther(node ast.Node) {
 		}
 	case *ast.LiteralNode:
 		// LiteralNode.Value points to a StringNode
-		i.flattenFurther(nodeType.Value)
+		i.listByDFS = append(i.listByDFS, addressedLiteral{
+			path: nodeType.GetPath(),
+			node: nodeType,
+		})
 	case *ast.StringNode:
 		i.listByDFS = append(i.listByDFS, addressedLiteral{
 			path: nodeType.GetPath(),

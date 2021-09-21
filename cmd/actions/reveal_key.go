@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"github.com/goccy/go-yaml/ast"
 	"io/ioutil"
 	"strings"
 
@@ -47,12 +48,15 @@ func RevealKey(cmd *cobra.Command, args []string) {
 
 		for _, literal := range literals.List() {
 			if strings.Contains(literal.path, args[1]) {
-				rawDecryptedData, err := decrypter.Decrypt([]byte(strings.TrimSpace(literal.node.Value)))
-				if err != nil {
-					fmt.Println(err)
-				}
+				if stringNode, ok := literal.node.(*ast.StringNode); ok {
+					rawDecryptedData, err := decrypter.Decrypt([]byte(strings.TrimSpace(stringNode.Value)))
+					if err != nil {
+						fmt.Println(err)
+					}
 
-				fmt.Println(string(rawDecryptedData))
+					fmt.Println(string(rawDecryptedData))
+
+				}
 				return
 			}
 		}
