@@ -6,6 +6,7 @@ require (
 	github.com/fatih/color v1.10.0
 	github.com/goccy/go-yaml v1.9.3
 	github.com/gosuri/uilive v0.0.4 // indirect
+	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/cobra v0.0.6
