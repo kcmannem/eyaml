@@ -11,5 +11,5 @@ require (
 	github.com/spf13/cobra v0.0.6
 	github.com/ukautz/reflekt v0.0.0-20180611090553-6ce38d64d188 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	gopkg.in/ukautz/clif.v1 v1.0.0-20190218144324-df36acc24204 // indirect
+	gopkg.in/ukautz/clif.v1 v1.0.0-20190218144324-df36acc24204
 )

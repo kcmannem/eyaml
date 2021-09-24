@@ -1,4 +1,4 @@
-package actions
+package eyaml
 
 import (
 	"github.com/goccy/go-yaml/ast"
@@ -14,7 +14,7 @@ type YamlLiterals struct {
 }
 
 func DfsSequence(root ast.Node) *YamlLiterals {
-	nodes := &YamlLiterals {
+	nodes := &YamlLiterals{
 		listByDFS: make([]addressedLiteral, 0),
 	}
 	nodes.DFS(root)

@@ -1,4 +1,4 @@
-package actions
+package eyaml
 
 import (
 	"fmt"
@@ -6,17 +6,16 @@ import (
 
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
-	"github.com/spf13/cobra"
 )
 
 
-func Encrypt(cmd *cobra.Command, args []string) {
-	if !fileExists(args[0]) {
+func Encrypt(filepath string) {
+	if !fileExists(filepath) {
 		fmt.Println("file doesn't exist")
 		return
 	}
 
-	data, err := ioutil.ReadFile(args[0])
+	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		fmt.Println(err)
 		return

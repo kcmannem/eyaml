@@ -1,20 +1,18 @@
-package actions
+package eyaml
 
 import (
+	"fmt"
 	"github.com/fatih/color"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"fmt"
 
 	"github.com/kcmannem/eyaml/secretbox"
 )
 
 const keyStoreDir = ".eyaml/keys/"
-var Write bool
 
-func Keygen(cmd *cobra.Command, args []string) {
+func Keygen(write bool) {
 	kp := secretbox.Keypair{}
 	err := kp.Generate()
 	if err != nil {
@@ -27,7 +25,7 @@ func Keygen(cmd *cobra.Command, args []string) {
 	cyan := color.New(color.FgCyan, color.Bold)
 	green := color.New(color.FgGreen)
 
-	if Write {
+	if write {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			fmt.Println(err)

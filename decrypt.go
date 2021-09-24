@@ -1,24 +1,21 @@
-package actions
+package eyaml
 
 import (
 	"fmt"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/printer"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"strings"
 )
 
-var SearchPath string
-
-func Decrypt(cmd *cobra.Command, args []string) {
-	if !fileExists(args[0]) {
+func Decrypt(filepath string, searchPath string) {
+	if !fileExists(filepath) {
 		fmt.Println("file doesn't exist")
 		return
 	}
 
-	data, err := ioutil.ReadFile(args[0])
+	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -45,7 +42,7 @@ func Decrypt(cmd *cobra.Command, args []string) {
 
 	decrypter := kp.Decrypter()
 
-	if SearchPath ==  "" {
+	if searchPath ==  "" {
 		for _, nodeTree := range astFile.Docs[1:] {
 			for _, literal:= range DfsSequence(nodeTree.Body).List() {
 				modify(literal.node, decrypter.Decrypt)
@@ -60,7 +57,7 @@ func Decrypt(cmd *cobra.Command, args []string) {
 	} else {
 		for _, nodeTree := range astFile.Docs[1:] {
 			for _, literal := range DfsSequence(nodeTree.Body).List() {
-				if strings.Contains(literal.path, SearchPath) {
+				if strings.Contains(literal.path, searchPath) {
 					stringValue := ""
 
 					switch typedNode := literal.node.(type) {

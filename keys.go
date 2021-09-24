@@ -1,4 +1,4 @@
-package actions
+package eyaml
 
 import (
 	"encoding/hex"

@@ -1,22 +1,14 @@
-package actions
+package eyaml
 
 import (
 	"fmt"
 	"github.com/goccy/go-yaml/token"
-	"os"
 	"strings"
 	"unicode"
 
 	"github.com/goccy/go-yaml/ast"
 )
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
 
 type modifyFunc func([]byte) ([]byte, error)
 
@@ -29,7 +21,7 @@ func modify(node ast.Node, modifier modifyFunc) {
 	}
 
 	// Both the Node.Value and Token.Origin/Value store the same string
-	// value seperately. However, Token.Origin is used when node.String()
+	// value separately. However, Token.Origin is used when node.String()
 	// is called; which will be done during printing the nodes back to the
 	// file after encryption
 }
