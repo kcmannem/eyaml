@@ -13,11 +13,11 @@ type YamlLiterals struct {
 	listByDFS []addressedLiteral
 }
 
-func YamlLiteralsFor(root ast.Node) *YamlLiterals {
+func DfsSequence(root ast.Node) *YamlLiterals {
 	nodes := &YamlLiterals {
 		listByDFS: make([]addressedLiteral, 0),
 	}
-	nodes.flatten(root)
+	nodes.DFS(root)
 	return nodes
 }
 
@@ -25,33 +25,33 @@ func (i *YamlLiterals) List() []addressedLiteral {
 	return i.listByDFS
 }
 
-func (i *YamlLiterals) flatten(node ast.Node) {
+func (i *YamlLiterals) DFS(node ast.Node) {
 	switch nodeType := node.(type) {
 	case *ast.MappingNode:
 		for _, subnode := range nodeType.Values {
-			i.flatten(subnode)
+			i.dfs(subnode)
 		}
 	case *ast.MappingValueNode:
-		i.flattenFurther(nodeType.Value)
+		i.dfs(nodeType.Value)
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
-			i.flattenFurther(subnode)
+			i.dfs(subnode)
 		}
 	}
 	return
 }
 
-func (i *YamlLiterals) flattenFurther(node ast.Node) {
+func (i *YamlLiterals) dfs(node ast.Node) {
 	switch nodeType := node.(type) {
 	case *ast.MappingValueNode:
-		i.flattenFurther(nodeType.Value)
+		i.dfs(nodeType.Value)
 	case *ast.MappingNode:
 		for _, subnode := range nodeType.Values {
-			i.flattenFurther(subnode)
+			i.dfs(subnode)
 		}
 	case *ast.SequenceNode:
 		for _, subnode := range nodeType.Values {
-			i.flattenFurther(subnode)
+			i.dfs(subnode)
 		}
 	case *ast.LiteralNode:
 		// LiteralNode.Value points to a StringNode

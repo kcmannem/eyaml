@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/goccy/go-yaml/ast"
-	"github.com/kcmannem/eyaml/secretbox"
 )
 
 func fileExists(filename string) bool {
@@ -19,54 +18,9 @@ func fileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-type actionFunc func([]byte) ([]byte, error)
+type modifyFunc func([]byte) ([]byte, error)
 
-type YamlNodeModifier interface {
-	modify([]byte) ([]byte, error)
-}
-
-func grabWhiteSpace(origin string) string {
-	nonWhitespaceSeeker := func(char rune) bool {
-		return !unicode.IsSpace(char)
-	}
-	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
-	return strings.Repeat(" ", i)
-}
-
-func modifyAndReapplyWhitespace(message string, modify actionFunc) (string, error) {
-	spaces := grabWhiteSpace(message)
-
-	modifiedBytes, err := modify(
-		[]byte(strings.TrimSpace(message)),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%s%s", spaces, string(modifiedBytes)), nil
-}
-
-func modifyAndReapplyWhitespaceForSequenceEntry(message string, modify actionFunc) (string, error) {
-	splitLines := strings.Split(message, "\n")
-	// drop an empty string that gets left behind no the split
-	splitLines = splitLines[:len(splitLines)-1]
-
-	for i, line := range splitLines {
-		splitLines[i] = strings.TrimSpace(line)
-	}
-	scrubedMessage := strings.Join(splitLines, "\n")
-
-	modifiedBytes, err := modify(
-		[]byte(scrubedMessage),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return string(modifiedBytes), nil
-}
-
-func modify(node ast.Node, modifier actionFunc) {
+func modify(node ast.Node, modifier modifyFunc) {
 	switch stringyNode := node.(type) {
 	case *ast.LiteralNode:
 		modifyLiteral(stringyNode, modifier)
@@ -78,15 +32,14 @@ func modify(node ast.Node, modifier actionFunc) {
 	// value seperately. However, Token.Origin is used when node.String()
 	// is called; which will be done during printing the nodes back to the
 	// file after encryption
-
 }
 
-func modifyLiteral(node *ast.LiteralNode, modifier actionFunc) {
+func modifyLiteral(node *ast.LiteralNode, modifier modifyFunc) {
 	stringNode := node.Value
 
-	if secretbox.IsBoxedMessage([]byte(stringNode.Value)) {
-		return
-	}
+	//if secretbox.IsBoxedMessage([]byte(stringNode.Value)) {
+	//	return
+	//}
 
 	newNodeValue, err := modifyAndReapplyWhitespace(stringNode.Value, modifier)
 	if err != nil {
@@ -116,10 +69,10 @@ func modifyLiteral(node *ast.LiteralNode, modifier actionFunc) {
 	stringNode.GetToken().Value = newTokenValue
 }
 
-func modifyString(node *ast.StringNode, modifier actionFunc) {
-	if secretbox.IsBoxedMessage([]byte(node.Value)) {
-		return
-	}
+func modifyString(node *ast.StringNode, modifier modifyFunc) {
+	//if secretbox.IsBoxedMessage([]byte(node.Value)) {
+	//	return
+	//}
 
 	newNodeValue, err := modifyAndReapplyWhitespace(node.Value, modifier)
 	if err != nil {
@@ -142,4 +95,45 @@ func modifyString(node *ast.StringNode, modifier actionFunc) {
 	node.Value = newNodeValue
 	node.GetToken().Origin = newTokenOrigin
 	node.GetToken().Value = newTokenValue
+}
+
+func grabWhiteSpace(origin string) string {
+	nonWhitespaceSeeker := func(char rune) bool {
+		return !unicode.IsSpace(char)
+	}
+	i := strings.IndexFunc(origin, nonWhitespaceSeeker)
+	return strings.Repeat(" ", i)
+}
+
+func modifyAndReapplyWhitespace(message string, modify modifyFunc) (string, error) {
+	spaces := grabWhiteSpace(message)
+
+	modifiedBytes, err := modify(
+		[]byte(strings.TrimSpace(message)),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s%s", spaces, string(modifiedBytes)), nil
+}
+
+func modifyAndReapplyWhitespaceForSequenceEntry(message string, modify modifyFunc) (string, error) {
+	splitLines := strings.Split(message, "\n")
+	// drop an empty string that gets left behind no the split
+	splitLines = splitLines[:len(splitLines)-1]
+
+	for i, line := range splitLines {
+		splitLines[i] = strings.TrimSpace(line)
+	}
+	scrubedMessage := strings.Join(splitLines, "\n")
+
+	modifiedBytes, err := modify(
+		[]byte(scrubedMessage),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return string(modifiedBytes), nil
 }

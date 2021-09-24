@@ -10,6 +10,19 @@ import (
 	"strings"
 )
 
+func getIncompleteKeypair(publicKey string) (secretbox.Keypair, error){
+	rawPubKey, err := hex.DecodeString(publicKey)
+	if err != nil {
+		return secretbox.Keypair{}, err
+	}
+	var rawPublicKey32 [32]byte
+	copy(rawPublicKey32[:], rawPubKey)
+
+	return secretbox.Keypair{
+		Public:  rawPublicKey32,
+	}, nil
+}
+
 func getKeypair(publicKey string) (secretbox.Keypair, error) {
 	privateKeyBytes, err := fetchPrivateKey(publicKey)
 	if err != nil {

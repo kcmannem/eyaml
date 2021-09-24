@@ -35,7 +35,7 @@ func Encrypt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	kp, err := getKeypair(metadata.PublicKey)
+	kp, err := getIncompleteKeypair(metadata.PublicKey)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -44,8 +44,7 @@ func Encrypt(cmd *cobra.Command, args []string) {
 	encrypter := kp.Encrypter(kp.Public)
 
 	for _, nodeTree := range astFile.Docs[1:] {
-		literals := YamlLiteralsFor(nodeTree.Body)
-		for _, literal:= range literals.List() {
+		for _, literal:= range DfsSequence(nodeTree.Body).List() {
 			modify(literal.node,  encrypter.Encrypt)
 		}
 	}
