@@ -1,38 +1,15 @@
-# eyaml - an [ejson](https://github.com/shopify/ejson) copycat
+# eyaml - secrets shouldn't be this hard
 
 *Lets you encrypt inlined secrets and not worry about secret managers.*
 
-### How? [DRAFT]
-
-eYaml like ejson prepends the public key used to encrypt values with as `_public_key:`. It traverses your yaml file looking for values to encrypt while leaving keys intact.
-
-In other words it turns this:
-```yaml
-admin_password: hello
-```
-Into this:
-```yaml
-_public_key: 2f2fa2be7c58672d551ef71151658229b9ae6d1369530ed983c49ba8cc937473
-admin_password: kekngniiqllr11rir994
-```
-
-Since eyaml encrypts every possible value it can in your file, you specify a whitelist using the `_encrypt:` key and providing a list of only the keys you want hidden away.
-
-
-```yaml
-_public_key: 2f2fa2be7c58672d551ef71151658229b9ae6d1369530ed983c49ba8cc937473
-_encrypt:
-  - admin_password
-  
-admin_user: krishna
-admin_password: kekngniiqllr11rir994
-```
-
 TODO:
-
+for v0.1b
+- [ ] change file extension from `*.yaml` to `*.e.yaml` (allows github to pickup yaml syntax highlighting)
+- [ ] add setenv command
+- [ ] add vault as keystore
+- [ ] add 1password as a keystore
+- [ ] write readme
+for v1.1 rc
 - [ ] make a build pipeline using github actions
 - [ ] notarize and publish build for brew
-- [ ] change schema to not be ejson
-- [ ] trimp white space for literal yaml values. it breaks for `key: |` and `key: -|`
 - [ ] add a rotate cmd
-- [ ] fix up readme
